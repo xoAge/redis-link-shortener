@@ -18,8 +18,41 @@ class LinkServiceTest {
     private final InMemoryLinkRepository repository = new InMemoryLinkRepository();
     private final AtomicInteger generated = new AtomicInteger();
     private final CodeGenerator generator = () -> "code" + generated.incrementAndGet();
-    private final LinkService service =
-            new LinkService(repository, generator, UrlValidator.withDefaultRules());
+    private final InMemoryClickCounter clickCounter = new InMemoryClickCounter();
+    private final LinkService service = new LinkService(
+            repository, generator, UrlValidator.withDefaultRules(), clickCounter);
+
+    @Test
+    void openCountsClicksButResolveDoesNot() {
+        String code = service.shorten(URL);
+
+        service.resolve(code);
+        service.open(code);
+        service.open(code);
+
+        assertThat(clickCounter.count(code)).isEqualTo(2);
+    }
+
+    @Test
+    void openOfUnknownCodeDoesNotCountClick() {
+        assertThat(service.open("unknown")).isEmpty();
+
+        assertThat(clickCounter.count("unknown")).isZero();
+    }
+
+    @Test
+    void statsContainsUrlClicksAndTtl() {
+        String code = service.shorten(URL, Duration.ofMinutes(5));
+        service.open(code);
+
+        assertThat(service.stats(code)).hasValue(
+                new LinkStats(code, URL, 1, Duration.ofMinutes(5)));
+    }
+
+    @Test
+    void statsOfUnknownCodeIsEmpty() {
+        assertThat(service.stats("unknown")).isEmpty();
+    }
 
     @Test
     void shortenSavesLinkAndReturnsCode() {
