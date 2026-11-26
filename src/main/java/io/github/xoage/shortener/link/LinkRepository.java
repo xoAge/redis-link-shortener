@@ -8,4 +8,7 @@ public interface LinkRepository {
     void save(String code, String url, Duration ttl);
 
     Optional<String> findUrl(String code);
+
+    Optional<Duration> remainingTtl(String code);
+
 }

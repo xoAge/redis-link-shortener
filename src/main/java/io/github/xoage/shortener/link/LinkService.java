@@ -15,11 +15,13 @@ public class LinkService {
     private final LinkRepository repository;
     private final CodeGenerator codeGenerator;
     private final UrlValidator urlValidator;
+    private final ClickCounter clickCounter;
 
-    public LinkService(LinkRepository repository, CodeGenerator codeGenerator, UrlValidator urlValidator) {
+    public LinkService(LinkRepository repository, CodeGenerator codeGenerator, UrlValidator urlValidator, ClickCounter clickCounter) {
         this.repository = repository;
         this.codeGenerator = codeGenerator;
         this.urlValidator = urlValidator;
+        this.clickCounter = clickCounter;
     }
 
     public String shorten(String url) {
@@ -49,5 +51,20 @@ public class LinkService {
         if (ttl.compareTo(MAX_TTL) > 0) {
             throw new InvalidTtlException("TTL не может быть больше " + MAX_TTL.toDays() + " дней");
         }
+    }
+
+    /** Возвращает ссылку и засчитывает переход. */
+    public Optional<String> open(String code) {
+        Optional<String> url = resolve(code);
+        url.ifPresent(found -> clickCounter.increment(code));
+        return url;
+    }
+
+    public Optional<LinkStats> stats(String code) {
+        return resolve(code).map(url -> new LinkStats(
+                code,
+                url,
+                clickCounter.count(code),
+                repository.remainingTtl(code).orElse(Duration.ZERO)));
     }
 }
