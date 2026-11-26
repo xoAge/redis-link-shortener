@@ -5,8 +5,19 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
 import java.time.Duration;
+import java.util.List;
 
 public class FixedWindowRateLimiter implements RateLimiter {
+
+    // KEYS[1] - ключ клиента, ARGV[1] - длина окна в миллисекундах.
+    // Возвращает {текущее значение счётчика, оставшийся TTL в мс}.
+    private static final String SCRIPT = """
+            local count = redis.call('INCR', KEYS[1])
+            if count == 1 or redis.call('PTTL', KEYS[1]) < 0 then
+                redis.call('PEXPIRE', KEYS[1], ARGV[1])
+            end
+            return {count, redis.call('PTTL', KEYS[1])}
+            """;
 
     private final JedisPool pool;
     private final long limit;
@@ -23,13 +34,14 @@ public class FixedWindowRateLimiter implements RateLimiter {
 
     @Override
     public RateLimitResult tryAcquire(String clientId) {
-        String key = RedisKeys.fixedWindow(clientId);
         try (Jedis jedis = pool.getResource()) {
-            long count = jedis.incr(key);
-            if (count == 1) {
-                jedis.pexpire(key, window.toMillis());
-            }
-            long ttlMillis = jedis.pttl(key);
+            List<?> reply = (List<?>) jedis.eval(
+                    SCRIPT,
+                    List.of(RedisKeys.fixedWindow(clientId)),
+                    List.of(String.valueOf(window.toMillis())));
+
+            long count = (Long) reply.get(0);
+            long ttlMillis = (Long) reply.get(1);
 
             boolean allowed = count <= limit;
             return new RateLimitResult(
