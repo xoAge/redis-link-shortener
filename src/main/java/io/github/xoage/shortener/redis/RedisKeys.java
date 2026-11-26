@@ -14,4 +14,13 @@ public final class RedisKeys {
     public static String clicks(String code) {
         return "clicks:" + code;
     }
+
+    public static String fixedWindow(String clientId) {
+        return "rate:fixed:" + clientId;
+    }
+
+    public static String slidingWindow(String clientId) {
+        return "rate:sliding:" + clientId;
+    }
+
 }
