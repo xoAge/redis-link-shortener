@@ -1,9 +1,7 @@
 package io.github.xoage.shortener.link;
 
 import io.github.xoage.shortener.code.CodeGenerator;
-import io.github.xoage.shortener.redis.RedisKeys;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
+import io.github.xoage.shortener.exception.InvalidTtlException;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -11,14 +9,17 @@ import java.util.Optional;
 public class LinkService {
 
     public static final Duration DEFAULT_TTL = Duration.ofHours(24);
+    public static final Duration MIN_TTL = Duration.ofSeconds(1);
     public static final Duration MAX_TTL = Duration.ofDays(365);
 
-    private final JedisPool pool;
+    private final LinkRepository repository;
     private final CodeGenerator codeGenerator;
+    private final UrlValidator urlValidator;
 
-    public LinkService(JedisPool pool, CodeGenerator codeGenerator) {
-        this.pool = pool;
+    public LinkService(LinkRepository repository, CodeGenerator codeGenerator, UrlValidator urlValidator) {
+        this.repository = repository;
         this.codeGenerator = codeGenerator;
+        this.urlValidator = urlValidator;
     }
 
     public String shorten(String url) {
@@ -26,13 +27,11 @@ public class LinkService {
     }
 
     public String shorten(String url, Duration ttl) {
-        UrlValidator.validate(url);
+        urlValidator.validate(url);
         validateTtl(ttl);
 
         String code = codeGenerator.next();
-        try (Jedis jedis = pool.getResource()) {
-            jedis.setex(RedisKeys.url(code), ttl.toSeconds(), url);
-        }
+        repository.save(code, url, ttl);
         return code;
     }
 
@@ -40,17 +39,15 @@ public class LinkService {
         if (code == null || code.isBlank()) {
             return Optional.empty();
         }
-        try (Jedis jedis = pool.getResource()) {
-            return Optional.ofNullable(jedis.get(RedisKeys.url(code)));
-        }
+        return repository.findUrl(code);
     }
 
     private void validateTtl(Duration ttl) {
-        if (ttl == null || ttl.toSeconds() < 1) {
-            throw new IllegalArgumentException("TTL должен быть не меньше 1 секунды");
+        if (ttl == null || ttl.compareTo(MIN_TTL) < 0) {
+            throw new InvalidTtlException("TTL должен быть не меньше 1 секунды");
         }
         if (ttl.compareTo(MAX_TTL) > 0) {
-            throw new IllegalArgumentException("TTL не может быть больше " + MAX_TTL.toDays() + " дней");
+            throw new InvalidTtlException("TTL не может быть больше " + MAX_TTL.toDays() + " дней");
         }
     }
 }

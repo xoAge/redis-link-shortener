@@ -1,5 +1,6 @@
 package io.github.xoage.shortener.link;
 
+import io.github.xoage.shortener.exception.InvalidUrlException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -10,6 +11,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class UrlValidatorTest {
 
+    private final UrlValidator validator = UrlValidator.withDefaultRules();
+
     @ParameterizedTest
     @ValueSource(strings = {
             "https://example.com",
@@ -18,7 +21,7 @@ class UrlValidatorTest {
             "https://github.com/xoAge"
     })
     void acceptsValidUrls(String url) {
-        assertThatCode(() -> UrlValidator.validate(url)).doesNotThrowAnyException();
+        assertThatCode(() -> validator.validate(url)).doesNotThrowAnyException();
     }
 
     @ParameterizedTest
@@ -32,14 +35,15 @@ class UrlValidatorTest {
             "http://exa mple.com"
     })
     void rejectsInvalidUrls(String url) {
-        assertThatThrownBy(() -> UrlValidator.validate(url))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> validator.validate(url))
+                .isInstanceOf(InvalidUrlException.class);
     }
 
     @Test
     void rejectsTooLongUrl() {
         String url = "https://example.com/" + "a".repeat(2100);
-        assertThatThrownBy(() -> UrlValidator.validate(url))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> validator.validate(url))
+                .isInstanceOf(InvalidUrlException.class);
     }
 }
+
