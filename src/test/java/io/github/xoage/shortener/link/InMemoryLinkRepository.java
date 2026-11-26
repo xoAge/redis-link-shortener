@@ -28,5 +28,11 @@ class InMemoryLinkRepository implements LinkRepository {
     int size() {
         return links.size();
     }
+
+    @Override
+    public Optional<Duration> remainingTtl(String code) {
+        return links.containsKey(code) ? Optional.of(lastTtl) : Optional.empty();
+    }
+
 }
 
