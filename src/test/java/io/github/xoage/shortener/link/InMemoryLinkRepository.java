@@ -1,5 +1,7 @@
 package io.github.xoage.shortener.link;
 
+import io.github.xoage.shortener.exception.DuplicateCodeException;
+
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +14,9 @@ class InMemoryLinkRepository implements LinkRepository {
 
     @Override
     public void save(String code, String url, Duration ttl) {
+        if (links.containsKey(code)) {
+            throw new DuplicateCodeException(code);
+        }
         links.put(code, url);
         lastTtl = ttl;
     }
