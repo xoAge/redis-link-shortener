@@ -1,4 +1,4 @@
-package io.github.xoage.shortener.cli;
+package io.github.xoage.shortener.client;
 
 import io.github.xoage.shortener.client.ParsedCommand;
 
