@@ -4,6 +4,7 @@ import io.github.xoage.shortener.redis.RedisKeys;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.Transaction;
+import redis.clients.jedis.params.SetParams;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -21,7 +22,8 @@ public class RedisLinkRepository implements LinkRepository {
         long seconds = ttl.toSeconds();
         try (Jedis jedis = pool.getResource(); Transaction tx = jedis.multi()) {
             tx.setex(RedisKeys.url(code), seconds, url);
-            tx.setex(RedisKeys.clicks(code), seconds, "0");
+            //nx - не затираем уже накопленный счётчик
+            tx.set(RedisKeys.clicks(code), "0", SetParams.setParams().nx().ex(seconds));
             tx.exec();
         }
     }
