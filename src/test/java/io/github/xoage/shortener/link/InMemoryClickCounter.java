@@ -3,7 +3,7 @@ package io.github.xoage.shortener.link;
 import java.util.HashMap;
 import java.util.Map;
 
-class InMemoryClickCounter implements ClickCounter {
+public class InMemoryClickCounter implements ClickCounter {
 
     private final Map<String, Long> counters = new HashMap<>();
 

@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-class InMemoryLinkRepository implements LinkRepository {
+public class InMemoryLinkRepository implements LinkRepository {
 
     private final Map<String, String> links = new HashMap<>();
     private Duration lastTtl;
