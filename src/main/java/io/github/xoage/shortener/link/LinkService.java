@@ -1,6 +1,7 @@
 package io.github.xoage.shortener.link;
 
 import io.github.xoage.shortener.code.CodeGenerator;
+import io.github.xoage.shortener.exception.DuplicateCodeException;
 import io.github.xoage.shortener.exception.InvalidTtlException;
 
 import java.time.Duration;
@@ -8,6 +9,7 @@ import java.util.Optional;
 
 public class LinkService {
 
+    private static final int MAX_CODE_ATTEMPTS = 3;
     public static final Duration DEFAULT_TTL = Duration.ofHours(24);
     public static final Duration MIN_TTL = Duration.ofSeconds(1);
     public static final Duration MAX_TTL = Duration.ofDays(365);
@@ -31,10 +33,20 @@ public class LinkService {
     public String shorten(String url, Duration ttl) {
         urlValidator.validate(url);
         validateTtl(ttl);
+        return saveWithNewCode(url, ttl, MAX_CODE_ATTEMPTS);
+    }
 
+    private String saveWithNewCode(String url, Duration ttl, int attemptsLeft) {
         String code = codeGenerator.next();
-        repository.save(code, url, ttl);
-        return code;
+        try {
+            repository.save(code, url, ttl);
+            return code;
+        } catch (DuplicateCodeException e) {
+            if (attemptsLeft <= 1) {
+                throw e;
+            }
+            return saveWithNewCode(url, ttl, attemptsLeft - 1);
+        }
     }
 
     public Optional<String> resolve(String code) {

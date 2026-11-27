@@ -1,11 +1,14 @@
 package io.github.xoage.shortener.link;
 
 import io.github.xoage.shortener.code.CodeGenerator;
+import io.github.xoage.shortener.exception.DuplicateCodeException;
 import io.github.xoage.shortener.exception.InvalidTtlException;
 import io.github.xoage.shortener.exception.InvalidUrlException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -105,4 +108,25 @@ class LinkServiceTest {
         assertThat(service.resolve("  ")).isEmpty();
         assertThat(service.resolve(null)).isEmpty();
     }
+
+    @Test
+    void retriesWithNewCodeOnCollision() {
+        repository.save("busy", URL, Duration.ofMinutes(1));
+        Iterator<String> codes = List.of("busy", "busy", "free").iterator();
+        LinkService retrying = new LinkService(
+                repository, codes::next, UrlValidator.withDefaultRules(), clickCounter);
+
+        assertThat(retrying.shorten(URL)).isEqualTo("free");
+    }
+
+    @Test
+    void failsWhenAllAttemptsCollide() {
+        repository.save("busy", URL, Duration.ofMinutes(1));
+        LinkService stuck = new LinkService(
+                repository, () -> "busy", UrlValidator.withDefaultRules(), clickCounter);
+
+        assertThatThrownBy(() -> stuck.shorten(URL))
+                .isInstanceOf(DuplicateCodeException.class);
+    }
+
 }
